@@ -310,7 +310,7 @@ export default function App() {
             </svg>
             <div>
               <h1 className="mg-display text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: COLORS.cream }}>
-                Mi Registro
+                Cow Register
               </h1>
               <p className="text-xs sm:text-sm" style={{ color: "#B9C2A8" }}>
                 Registro del hato · {stats.total} {stats.total === 1 ? "animal" : "animales"}

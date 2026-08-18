@@ -1,18 +1,9 @@
-# Mi Ganado
+# Cow Register
 
-App para llevar el inventario de tu hato: registro de animales con arete, raza, sexo, peso, edad y estado de salud (Saludable, Sobrepeso, Bajo peso, Enferma, Vendida).
+## Problema
 
-## Estructura del proyecto
+Muchos ganaderos pequeños y medianos todavía llevan el control de su hato en cuadernos físicos o de memoria: número de arete, raza, peso, estado de salud de cada animal. Esto hace difícil saber rápidamente cuántos animales hay, cuáles están enfermos, con sobrepeso o bajos de peso, y dificulta tomar decisiones a tiempo sobre su manejo. Además, no existe una forma sencilla y gratuita de tener esta información organizada y accesible desde cualquier dispositivo.
 
-```
-mi-ganado/
-├── index.html
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-├── postcss.config.js
-└── src/
-    ├── main.jsx     # punto de entrada de React
-    ├── App.jsx       # toda la lógica y la interfaz de la app
-    └── index.css     # estilos base de Tailwind
-```
+## Solución
+
+Cow Register es una aplicación web gratuita y responsive donde el ganadero registra cada animal (arete, nombre, raza, sexo, edad, peso, notas) y la app clasifica automáticamente su estado de peso (Saludable, Sobrepeso o Bajo peso) según rangos de referencia por edad y sexo, ajustables por raza. La información queda guardada de forma persistente en el dispositivo, con un panel que resume de un vistazo el total de animales, cuántos están saludables y cuáles requieren atención.
