@@ -5,18 +5,23 @@ import {
   StickyNote, ShieldAlert, CircleDot, TrendingUp, TrendingDown, Settings2, HelpCircle
 } from "lucide-react";
 
+// Paleta "hueso + rojo de granero": fondo hueso en toda la app, rojo como
+// color de marca (botones, título, acento del estado "Enferma"), con
+// verde/dorado/arcilla reservados solo para los estados de peso.
 const COLORS = {
-  bg: "#26331F",       // pasture dusk green
-  bgSoft: "#30412A",
-  card: "#F4EDDA",     // manila / parchment tag
-  cardEdge: "#E4D9B8",
-  ink: "#2C2417",
-  inkSoft: "#6B5F47",
-  cream: "#F4EDDA",
-  gold: "#C79A2C",     // tag yellow
-  rust: "#B5482F",     // alert
-  olive: "#6E7B3F",    // healthy
-  clay: "#8A5A3B",
+  bg: "#EFE6D2",         // fondo hueso de toda la app
+  bgHeader: "#E7D9B9",   // hueso un tono más profundo para el encabezado
+  card: "#FBF7EC",       // superficie de las tarjetas, hueso casi blanco
+  cardEdge: "#DFCBA0",
+  ink: "#2B2118",
+  inkSoft: "#7C6C4E",
+  cream: "#FBF7EC",
+  red: "#A6362A",        // rojo de marca (botones, título, foco)
+  redDeep: "#7C2A1F",
+  redSoft: "#F1D9D0",    // tinte rojo claro para fondos sutiles
+  gold: "#BE8A2E",        // Sobrepeso
+  clay: "#8A5A3B",        // Bajo peso
+  olive: "#5F7A3D",        // Saludable
 };
 
 // Estado de peso: se calcula automáticamente, nunca se edita a mano.
@@ -29,7 +34,7 @@ const WEIGHT_STATUS = {
 // Condiciones independientes: pueden combinarse entre sí y con cualquier
 // estado de peso (ej. Sobrepeso + Enferma al mismo tiempo).
 const FLAGS = {
-  sick: { key: "sick", label: "Enferma", color: COLORS.rust, icon: ShieldAlert },
+  sick: { key: "sick", label: "Enferma", color: COLORS.red, icon: ShieldAlert },
   sold: { key: "sold", label: "Vendida", color: COLORS.inkSoft, icon: CircleDot },
 };
 
@@ -302,7 +307,7 @@ export default function App() {
   return (
     <div
       className="min-h-full w-full"
-      style={{ background: COLORS.bg, fontFamily: "'Inter', sans-serif", color: COLORS.cream }}
+      style={{ background: COLORS.bg, fontFamily: "'Inter', sans-serif", color: COLORS.ink }}
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap');
@@ -313,27 +318,32 @@ export default function App() {
         .mg-fade-in { animation: mgFadeIn 0.25s ease both; }
         @keyframes mgFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .mg-select { -webkit-appearance: none; appearance: none; }
-        ::selection { background: ${COLORS.gold}; color: ${COLORS.ink}; }
+        .mg-stitch {
+          background-image: repeating-linear-gradient(90deg, ${COLORS.red} 0 10px, transparent 10px 20px);
+          height: 2px;
+          opacity: 0.5;
+        }
+        ::selection { background: ${COLORS.red}; color: ${COLORS.cream}; }
       `}</style>
 
       {/* Header */}
-      <header className="px-4 sm:px-8 pt-8 pb-6" style={{ background: COLORS.bgSoft }}>
+      <header className="px-4 sm:px-8 pt-8 pb-6" style={{ background: COLORS.bgHeader }}>
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <svg width="38" height="38" viewBox="0 0 40 40" fill="none">
-              <circle cx="20" cy="20" r="19" stroke={COLORS.gold} strokeWidth="2" />
-              <path d="M12 16c1-3 4-5 8-5s7 2 8 5" stroke={COLORS.gold} strokeWidth="2" strokeLinecap="round" />
-              <path d="M13 16c-2 0-4 1.5-4 4s2 3 3 2" stroke={COLORS.gold} strokeWidth="2" strokeLinecap="round" />
-              <path d="M27 16c2 0 4 1.5 4 4s-2 3-3 2" stroke={COLORS.gold} strokeWidth="2" strokeLinecap="round" />
-              <ellipse cx="20" cy="23" rx="7" ry="6" stroke={COLORS.gold} strokeWidth="2" />
-              <circle cx="17.5" cy="22.5" r="1.2" fill={COLORS.gold} />
-              <circle cx="22.5" cy="22.5" r="1.2" fill={COLORS.gold} />
+              <circle cx="20" cy="20" r="19" stroke={COLORS.red} strokeWidth="2" />
+              <path d="M12 16c1-3 4-5 8-5s7 2 8 5" stroke={COLORS.red} strokeWidth="2" strokeLinecap="round" />
+              <path d="M13 16c-2 0-4 1.5-4 4s2 3 3 2" stroke={COLORS.red} strokeWidth="2" strokeLinecap="round" />
+              <path d="M27 16c2 0 4 1.5 4 4s-2 3-3 2" stroke={COLORS.red} strokeWidth="2" strokeLinecap="round" />
+              <ellipse cx="20" cy="23" rx="7" ry="6" stroke={COLORS.red} strokeWidth="2" />
+              <circle cx="17.5" cy="22.5" r="1.2" fill={COLORS.red} />
+              <circle cx="22.5" cy="22.5" r="1.2" fill={COLORS.red} />
             </svg>
             <div>
-              <h1 className="mg-display text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: COLORS.cream }}>
+              <h1 className="mg-display text-2xl sm:text-3xl font-bold tracking-tight" style={{ color: COLORS.redDeep }}>
                 Cow Register
               </h1>
-              <p className="text-xs sm:text-sm" style={{ color: "#B9C2A8" }}>
+              <p className="text-xs sm:text-sm" style={{ color: COLORS.inkSoft }}>
                 Registro del hato · {stats.total} {stats.total === 1 ? "animal" : "animales"}
               </p>
             </div>
@@ -342,7 +352,7 @@ export default function App() {
             <button
               onClick={() => setBreedModalOpen(true)}
               className="flex items-center gap-2 rounded-full px-3 py-2.5 sm:px-4 sm:py-3 font-semibold text-sm"
-              style={{ background: "rgba(244,237,218,0.1)", color: COLORS.cream }}
+              style={{ background: COLORS.redSoft, color: COLORS.redDeep }}
               title="Configurar rangos de peso por raza"
             >
               <Settings2 size={18} />
@@ -351,7 +361,7 @@ export default function App() {
             <button
               onClick={openAdd}
               className="flex items-center gap-2 rounded-full px-4 py-2.5 sm:px-5 sm:py-3 font-semibold text-sm"
-              style={{ background: COLORS.gold, color: COLORS.ink }}
+              style={{ background: COLORS.red, color: COLORS.cream }}
             >
               <Plus size={18} strokeWidth={2.5} />
               <span className="hidden sm:inline">Agregar animal</span>
@@ -363,36 +373,40 @@ export default function App() {
         {/* Stats */}
         <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
           {[
-            { label: "Total", value: stats.total, color: COLORS.cream },
+            { label: "Total", value: stats.total, color: COLORS.ink },
             { label: "Saludables", value: stats.healthy, color: COLORS.olive },
-            { label: "Requieren atención", value: stats.attention, color: COLORS.rust },
+            { label: "Requieren atención", value: stats.attention, color: COLORS.red },
             { label: "Peso promedio", value: stats.avgWeight ? `${stats.avgWeight} kg` : "—", color: COLORS.gold },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl px-3 py-3" style={{ background: "rgba(244,237,218,0.06)" }}>
+            <div key={s.label} className="rounded-xl px-3 py-3" style={{ background: COLORS.card, border: `1px solid ${COLORS.cardEdge}` }}>
               <div className="mg-mono text-xl sm:text-2xl font-bold" style={{ color: s.color }}>{s.value}</div>
-              <div className="text-[11px] sm:text-xs mt-0.5" style={{ color: "#9CA687" }}>{s.label}</div>
+              <div className="text-[11px] sm:text-xs mt-0.5" style={{ color: COLORS.inkSoft }}>{s.label}</div>
             </div>
           ))}
         </div>
+        <div className="max-w-5xl mx-auto mg-stitch mt-6 rounded-full" />
       </header>
 
       {/* Controls */}
       <div className="max-w-5xl mx-auto px-4 sm:px-8 mt-6 flex flex-wrap gap-3 items-center">
-        <div className="flex items-center gap-2 rounded-full px-4 py-2 flex-1 min-w-[200px]" style={{ background: COLORS.bgSoft }}>
-          <Search size={16} color="#9CA687" />
+        <div
+          className="flex items-center gap-2 rounded-full px-4 py-2 flex-1 min-w-[200px]"
+          style={{ background: COLORS.card, border: `1px solid ${COLORS.cardEdge}` }}
+        >
+          <Search size={16} color={COLORS.inkSoft} />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar por arete o nombre..."
             className="bg-transparent outline-none text-sm w-full"
-            style={{ color: COLORS.cream }}
+            style={{ color: COLORS.ink }}
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="mg-select rounded-full px-4 py-2 text-sm outline-none"
-          style={{ background: COLORS.bgSoft, color: COLORS.cream, border: "none" }}
+          style={{ background: COLORS.card, color: COLORS.ink, border: `1px solid ${COLORS.cardEdge}` }}
         >
           <option value="Todos">Todos los estados</option>
           <option value="Saludable">Saludable</option>
@@ -402,12 +416,12 @@ export default function App() {
           <option value="Vendida">Vendida</option>
         </select>
         {saving && (
-          <span className="text-xs flex items-center gap-1" style={{ color: "#9CA687" }}>
+          <span className="text-xs flex items-center gap-1" style={{ color: COLORS.inkSoft }}>
             <Loader2 size={12} className="animate-spin" /> Guardando...
           </span>
         )}
         {saveError && (
-          <span className="text-xs" style={{ color: COLORS.rust }}>
+          <span className="text-xs" style={{ color: COLORS.red }}>
             No se pudo guardar. Intenta de nuevo.
           </span>
         )}
@@ -416,13 +430,13 @@ export default function App() {
       {/* Body */}
       <main className="max-w-5xl mx-auto px-4 sm:px-8 py-6">
         {loading ? (
-          <div className="flex items-center justify-center py-24" style={{ color: "#9CA687" }}>
+          <div className="flex items-center justify-center py-24" style={{ color: COLORS.inkSoft }}>
             <Loader2 className="animate-spin mr-2" size={18} /> Cargando el hato...
           </div>
         ) : herd.length === 0 ? (
           <EmptyState onAdd={openAdd} />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20" style={{ color: "#9CA687" }}>
+          <div className="text-center py-20" style={{ color: COLORS.inkSoft }}>
             Ningún animal coincide con la búsqueda.
           </div>
         ) : (
@@ -443,7 +457,7 @@ export default function App() {
       {modalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-          style={{ background: "rgba(20,24,15,0.65)" }}
+          style={{ background: "rgba(30,20,14,0.55)" }}
           onClick={closeModal}
         >
           <form
@@ -491,7 +505,7 @@ export default function App() {
                         type="button"
                         onClick={() => setBreedModalOpen(true)}
                         className="text-xs underline mt-1.5 font-semibold"
-                        style={{ color: COLORS.clay }}
+                        style={{ color: COLORS.red }}
                       >
                         + Agregar raza
                       </button>
@@ -554,7 +568,7 @@ export default function App() {
                 <div
                   className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold"
                   style={{
-                    background: liveWeightStatus ? `${WEIGHT_STATUS[liveWeightStatus].color}22` : "#EFE9D8",
+                    background: liveWeightStatus ? `${WEIGHT_STATUS[liveWeightStatus].color}22` : "#EFE6D2",
                     color: liveWeightStatus ? WEIGHT_STATUS[liveWeightStatus].color : COLORS.inkSoft,
                   }}
                 >
@@ -576,7 +590,7 @@ export default function App() {
                     type="button"
                     onClick={() => setBreedModalOpen(true)}
                     className="underline font-semibold"
-                    style={{ color: COLORS.clay }}
+                    style={{ color: COLORS.red }}
                   >
                     rangos de la raza elegida
                   </button>. No se puede editar a mano.
@@ -638,7 +652,7 @@ export default function App() {
               <button
                 type="submit"
                 className="flex-1 rounded-full py-3 font-semibold text-sm"
-                style={{ background: COLORS.olive, color: COLORS.cream }}
+                style={{ background: COLORS.red, color: COLORS.cream }}
               >
                 {editingId ? "Guardar cambios" : "Agregar animal"}
               </button>
@@ -651,7 +665,7 @@ export default function App() {
       {confirmId && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(20,24,15,0.65)" }}
+          style={{ background: "rgba(30,20,14,0.55)" }}
           onClick={() => setConfirmId(null)}
         >
           <div
@@ -674,7 +688,7 @@ export default function App() {
               <button
                 onClick={() => confirmDelete(confirmId)}
                 className="flex-1 rounded-full py-2.5 font-semibold text-sm"
-                style={{ background: COLORS.rust, color: COLORS.cream }}
+                style={{ background: COLORS.red, color: COLORS.cream }}
               >
                 Eliminar
               </button>
@@ -711,7 +725,7 @@ function Field({ label, error, children }) {
     <label className="block">
       <span className="text-xs font-medium block mb-1" style={{ color: COLORS.inkSoft }}>{label}</span>
       {children}
-      {error && <span className="text-xs block mt-1" style={{ color: COLORS.rust }}>{error}</span>}
+      {error && <span className="text-xs block mt-1" style={{ color: COLORS.red }}>{error}</span>}
     </label>
   );
 }
@@ -726,7 +740,7 @@ function CowCard({ cow, onEdit, onDeleteRequest }) {
   const age = ageFromDate(cow.birthDate);
   const weightInfo = cow.weightStatus ? WEIGHT_STATUS[cow.weightStatus] : null;
   const primaryColor = cow.sick
-    ? COLORS.rust
+    ? COLORS.red
     : weightInfo
     ? weightInfo.color
     : cow.sold
@@ -759,10 +773,10 @@ function CowCard({ cow, onEdit, onDeleteRequest }) {
           )}
         </div>
         <div className="flex gap-1 shrink-0">
-          <button onClick={onEdit} className="p-1.5 rounded-full" style={{ color: COLORS.inkSoft, background: "rgba(0,0,0,0.04)" }}>
+          <button onClick={onEdit} className="p-1.5 rounded-full" style={{ color: COLORS.inkSoft, background: "rgba(43,33,24,0.05)" }}>
             <Pencil size={14} />
           </button>
-          <button onClick={onDeleteRequest} className="p-1.5 rounded-full" style={{ color: COLORS.rust, background: "rgba(0,0,0,0.04)" }}>
+          <button onClick={onDeleteRequest} className="p-1.5 rounded-full" style={{ color: COLORS.red, background: "rgba(43,33,24,0.05)" }}>
             <Trash2 size={14} />
           </button>
         </div>
@@ -780,7 +794,7 @@ function CowCard({ cow, onEdit, onDeleteRequest }) {
         ) : (
           <span
             className="flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1"
-            style={{ background: "#EFE9D8", color: COLORS.inkSoft }}
+            style={{ background: "#EFE6D2", color: COLORS.inkSoft }}
           >
             <HelpCircle size={12} /> Sin clasificar
           </span>
@@ -788,7 +802,7 @@ function CowCard({ cow, onEdit, onDeleteRequest }) {
         {cow.sick && (
           <span
             className="flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1"
-            style={{ background: `${COLORS.rust}22`, color: COLORS.rust }}
+            style={{ background: `${COLORS.red}22`, color: COLORS.red }}
           >
             <ShieldAlert size={12} /> Enferma
           </span>
@@ -838,20 +852,20 @@ function EmptyState({ onAdd }) {
   return (
     <div className="flex flex-col items-center text-center py-20 px-4">
       <svg width="56" height="56" viewBox="0 0 40 40" fill="none" className="mb-4 opacity-70">
-        <circle cx="20" cy="20" r="19" stroke={COLORS.gold} strokeWidth="1.5" strokeDasharray="3 3" />
-        <path d="M12 16c1-3 4-5 8-5s7 2 8 5" stroke={COLORS.gold} strokeWidth="1.5" strokeLinecap="round" />
-        <ellipse cx="20" cy="23" rx="7" ry="6" stroke={COLORS.gold} strokeWidth="1.5" />
+        <circle cx="20" cy="20" r="19" stroke={COLORS.red} strokeWidth="1.5" strokeDasharray="3 3" />
+        <path d="M12 16c1-3 4-5 8-5s7 2 8 5" stroke={COLORS.red} strokeWidth="1.5" strokeLinecap="round" />
+        <ellipse cx="20" cy="23" rx="7" ry="6" stroke={COLORS.red} strokeWidth="1.5" />
       </svg>
-      <h3 className="mg-display text-lg font-bold" style={{ color: COLORS.cream }}>
+      <h3 className="mg-display text-lg font-bold" style={{ color: COLORS.ink }}>
         Todavía no hay animales registrados
       </h3>
-      <p className="text-sm mt-1.5 max-w-xs" style={{ color: "#9CA687" }}>
+      <p className="text-sm mt-1.5 max-w-xs" style={{ color: COLORS.inkSoft }}>
         Agrega tu primer animal para empezar a llevar el control de tu hato.
       </p>
       <button
         onClick={onAdd}
         className="mt-5 flex items-center gap-2 rounded-full px-5 py-2.5 font-semibold text-sm"
-        style={{ background: COLORS.gold, color: COLORS.ink }}
+        style={{ background: COLORS.red, color: COLORS.cream }}
       >
         <Plus size={16} strokeWidth={2.5} /> Agregar primer animal
       </button>
@@ -960,7 +974,7 @@ function BreedRangesModal({ breedRanges, onSave, onClose }) {
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: "rgba(20,24,15,0.7)" }}
+      style={{ background: "rgba(30,20,14,0.6)" }}
       onClick={onClose}
     >
       <div
@@ -1000,10 +1014,10 @@ function BreedRangesModal({ breedRanges, onSave, onClose }) {
                       </div>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <button onClick={() => openEdit(key)} className="p-1.5 rounded-full" style={{ color: COLORS.inkSoft, background: "rgba(0,0,0,0.04)" }}>
+                      <button onClick={() => openEdit(key)} className="p-1.5 rounded-full" style={{ color: COLORS.inkSoft, background: "rgba(43,33,24,0.05)" }}>
                         <Pencil size={14} />
                       </button>
-                      <button onClick={() => handleDelete(key)} className="p-1.5 rounded-full" style={{ color: COLORS.rust, background: "rgba(0,0,0,0.04)" }}>
+                      <button onClick={() => handleDelete(key)} className="p-1.5 rounded-full" style={{ color: COLORS.red, background: "rgba(43,33,24,0.05)" }}>
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1015,7 +1029,7 @@ function BreedRangesModal({ breedRanges, onSave, onClose }) {
             <button
               onClick={openNew}
               className="w-full flex items-center justify-center gap-2 rounded-full py-2.5 font-semibold text-sm"
-              style={{ background: COLORS.olive, color: COLORS.cream }}
+              style={{ background: COLORS.red, color: COLORS.cream }}
             >
               <Plus size={16} strokeWidth={2.5} /> Agregar raza
             </button>
@@ -1074,7 +1088,7 @@ function BreedRangesModal({ breedRanges, onSave, onClose }) {
               ))}
             </div>
 
-            {error && <p className="text-xs mt-3" style={{ color: COLORS.rust }}>{error}</p>}
+            {error && <p className="text-xs mt-3" style={{ color: COLORS.red }}>{error}</p>}
 
             <div className="flex gap-3 mt-5">
               <button
@@ -1088,7 +1102,7 @@ function BreedRangesModal({ breedRanges, onSave, onClose }) {
               <button
                 type="submit"
                 className="flex-1 rounded-full py-3 font-semibold text-sm"
-                style={{ background: COLORS.olive, color: COLORS.cream }}
+                style={{ background: COLORS.red, color: COLORS.cream }}
               >
                 Guardar raza
               </button>
