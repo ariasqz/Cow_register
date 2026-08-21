@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   Plus, Search, X, Pencil, Trash2, Tag as TagIcon,
   Calendar, Scale, CheckCircle2, Loader2,
-  StickyNote, ShieldAlert, CircleDot, TrendingUp, TrendingDown, Settings2
+  StickyNote, ShieldAlert, CircleDot, TrendingUp, TrendingDown, Settings2, HelpCircle
 } from "lucide-react";
 
 const COLORS = {
@@ -19,12 +19,18 @@ const COLORS = {
   clay: "#8A5A3B",
 };
 
-const STATUS = {
+// Estado de peso: se calcula automáticamente, nunca se edita a mano.
+const WEIGHT_STATUS = {
   "Saludable": { color: COLORS.olive, icon: CheckCircle2 },
   "Sobrepeso": { color: COLORS.gold, icon: TrendingUp },
   "Bajo peso": { color: COLORS.clay, icon: TrendingDown },
-  "Enferma": { color: COLORS.rust, icon: ShieldAlert },
-  "Vendida": { color: COLORS.inkSoft, icon: CircleDot },
+};
+
+// Condiciones independientes: pueden combinarse entre sí y con cualquier
+// estado de peso (ej. Sobrepeso + Enferma al mismo tiempo).
+const FLAGS = {
+  sick: { key: "sick", label: "Enferma", color: COLORS.rust, icon: ShieldAlert },
+  sold: { key: "sold", label: "Vendida", color: COLORS.inkSoft, icon: CircleDot },
 };
 
 const STORAGE_KEY = "herd-records";
@@ -50,16 +56,16 @@ function ageFromDate(dateStr) {
 
 const emptyForm = {
   tag: "", name: "", breed: "", sex: "Hembra",
-  birthDate: "", weight: "", status: "Saludable", notes: "",
+  birthDate: "", weight: "", sick: false, sold: false, notes: "",
 };
 
-// Rangos de referencia (kg) por etapa y sexo, usados cuando la raza del
-// animal no tiene un perfil personalizado guardado. Son valores generales
-// de bovinos de doble propósito/cría en pastoreo.
+// Rangos de referencia (kg) usados solo como punto de partida al crear un
+// perfil de raza nuevo. La clasificación real de cada animal SIEMPRE usa el
+// perfil guardado de su raza, nunca este default.
 const DEFAULT_WEIGHT_RANGES = {
-  ternero: { Hembra: [90, 150], Macho: [100, 160] },   // 0-12 meses
-  novillo: { Hembra: [150, 280], Macho: [160, 320] },  // 1-2 años
-  adulto: { Hembra: [280, 450], Macho: [320, 550] },   // 2+ años
+  ternero: { Hembra: [90, 150], Macho: [100, 160] },
+  novillo: { Hembra: [150, 280], Macho: [160, 320] },
+  adulto: { Hembra: [280, 450], Macho: [320, 550] },
 };
 
 const STAGE_LABELS = { ternero: "Ternero/a (0–12 m)", novillo: "Novillo/a (1–2 a)", adulto: "Adulto/a (2+ a)" };
@@ -69,7 +75,7 @@ function normalizeBreedKey(breed) {
 }
 
 function ageCategory(birthDateStr) {
-  if (!birthDateStr) return "adulto"; // sin fecha, se asume adulto
+  if (!birthDateStr) return "adulto";
   const born = new Date(birthDateStr);
   if (isNaN(born.getTime())) return "adulto";
   const now = new Date();
@@ -80,51 +86,50 @@ function ageCategory(birthDateStr) {
   return "adulto";
 }
 
-// Devuelve los rangos a usar para una raza: el perfil personalizado si
-// existe (comparación sin distinguir mayúsculas/espacios), o el default.
-function getRangesForBreed(breed, breedRanges) {
-  const key = normalizeBreedKey(breed);
-  if (key && breedRanges && breedRanges[key]) return breedRanges[key];
-  return DEFAULT_WEIGHT_RANGES;
-}
-
+// Clasificación ESTRICTA: solo devuelve un estado si la raza tiene un perfil
+// guardado. Si la raza está vacía, no coincide con ningún perfil, o falta el
+// peso, devuelve null ("Sin clasificar") en vez de usar un rango genérico.
 function classifyWeight(weight, birthDateStr, sex, breed, breedRanges) {
   if (weight == null || weight === "" || isNaN(Number(weight))) return null;
+  const key = normalizeBreedKey(breed);
+  if (!key || !breedRanges || !breedRanges[key]) return null;
+  const profile = breedRanges[key];
   const num = Number(weight);
   const category = ageCategory(birthDateStr);
-  const ranges = getRangesForBreed(breed, breedRanges);
-  const [min, max] = ranges[category][sex] || ranges[category]["Hembra"];
+  const [min, max] = profile[category][sex] || profile[category]["Hembra"];
   if (num < min) return "Bajo peso";
   if (num > max) return "Sobrepeso";
   return "Saludable";
 }
 
-// Aplica la clasificación automática al formulario, salvo que el animal
-// esté marcado manualmente como Enferma o Vendida (esos estados no se pisan).
-function withAutoStatus(nextForm, breedRanges) {
-  if (nextForm.status === "Enferma" || nextForm.status === "Vendida") return nextForm;
-  const classified = classifyWeight(nextForm.weight, nextForm.birthDate, nextForm.sex, nextForm.breed, breedRanges);
-  if (!classified) return nextForm;
-  return { ...nextForm, status: classified };
-}
-
 // Recalcula el estado de peso de todo el hato con los rangos vigentes.
-// Se usa cada vez que se crea/edita/borra un perfil de raza, para que el
-// cambio se aplique a todos los animales de esa raza automáticamente.
 function recomputeHerdStatuses(herd, breedRanges) {
   return herd.map((cow) => {
-    if (cow.status === "Enferma" || cow.status === "Vendida") return cow;
-    const classified = classifyWeight(cow.weight, cow.birthDate, cow.sex, cow.breed, breedRanges);
-    if (!classified || classified === cow.status) return cow;
-    return { ...cow, status: classified };
+    const weightStatus = classifyWeight(cow.weight, cow.birthDate, cow.sex, cow.breed, breedRanges);
+    if (weightStatus === cow.weightStatus) return cow;
+    return { ...cow, weightStatus };
   });
+}
+
+// Convierte registros guardados con el esquema viejo (un solo campo
+// "status") al esquema nuevo (weightStatus + sick + sold independientes).
+function migrateCow(cow) {
+  if (cow.weightStatus !== undefined || cow.sick !== undefined || cow.sold !== undefined) {
+    return { ...cow, sick: !!cow.sick, sold: !!cow.sold, weightStatus: cow.weightStatus ?? null };
+  }
+  const oldStatus = cow.status;
+  return {
+    ...cow,
+    sick: oldStatus === "Enferma",
+    sold: oldStatus === "Vendida",
+    weightStatus: ["Saludable", "Sobrepeso", "Bajo peso"].includes(oldStatus) ? oldStatus : null,
+  };
 }
 
 export default function App() {
   const [herd, setHerd] = useState([]);
   const [breedRanges, setBreedRanges] = useState({});
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -139,26 +144,30 @@ export default function App() {
   const [breedModalOpen, setBreedModalOpen] = useState(false);
 
   useEffect(() => {
+    let loadedHerd = [];
+    let loadedRanges = {};
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        setHerd(Array.isArray(parsed) ? parsed : []);
+        loadedHerd = Array.isArray(parsed) ? parsed : [];
       }
     } catch (e) {
-      setHerd([]);
+      loadedHerd = [];
     }
     try {
       const rawRanges = localStorage.getItem(BREED_STORAGE_KEY);
       if (rawRanges) {
         const parsedRanges = JSON.parse(rawRanges);
-        setBreedRanges(parsedRanges && typeof parsedRanges === "object" ? parsedRanges : {});
+        loadedRanges = parsedRanges && typeof parsedRanges === "object" ? parsedRanges : {};
       }
     } catch (e) {
-      setBreedRanges({});
-    } finally {
-      setLoading(false);
+      loadedRanges = {};
     }
+    const migrated = loadedHerd.map(migrateCow);
+    setBreedRanges(loadedRanges);
+    setHerd(recomputeHerdStatuses(migrated, loadedRanges));
+    setLoading(false);
   }, []);
 
   function persist(nextHerd) {
@@ -174,8 +183,6 @@ export default function App() {
     }
   }
 
-  // Guarda los perfiles de raza y aplica de inmediato los nuevos rangos a
-  // todo el hato (recalcula Saludable/Sobrepeso/Bajo peso de cada animal).
   function saveBreedRanges(nextRanges) {
     setBreedRanges(nextRanges);
     try {
@@ -186,6 +193,16 @@ export default function App() {
     const recomputed = recomputeHerdStatuses(herd, nextRanges);
     persist(recomputed);
   }
+
+  const breedProfiles = useMemo(
+    () => Object.values(breedRanges).sort((a, b) => a.name.localeCompare(b.name)),
+    [breedRanges]
+  );
+
+  const liveWeightStatus = useMemo(
+    () => classifyWeight(form.weight, form.birthDate, form.sex, form.breed, breedRanges),
+    [form.weight, form.birthDate, form.sex, form.breed, breedRanges]
+  );
 
   function openAdd() {
     setEditingId(null);
@@ -200,7 +217,7 @@ export default function App() {
       tag: cow.tag || "", name: cow.name || "", breed: cow.breed || "",
       sex: cow.sex || "Hembra", birthDate: cow.birthDate || "",
       weight: cow.weight != null ? String(cow.weight) : "",
-      status: cow.status || "Saludable", notes: cow.notes || "",
+      sick: !!cow.sick, sold: !!cow.sold, notes: cow.notes || "",
     });
     setFormErrors({});
     setModalOpen(true);
@@ -224,15 +241,19 @@ export default function App() {
     setFormErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
+    const weightStatus = classifyWeight(form.weight, form.birthDate, form.sex, form.breed, breedRanges);
+
     const record = {
       id: editingId || uid(),
       tag: form.tag.trim(),
       name: form.name.trim(),
-      breed: form.breed.trim(),
+      breed: form.breed,
       sex: form.sex,
       birthDate: form.birthDate,
       weight: form.weight ? Number(form.weight) : null,
-      status: form.status,
+      weightStatus,
+      sick: form.sick,
+      sold: form.sold,
       notes: form.notes.trim(),
       createdAt: editingId
         ? (herd.find((c) => c.id === editingId)?.createdAt || Date.now())
@@ -258,19 +279,22 @@ export default function App() {
       const matchesQuery =
         !query.trim() ||
         c.tag.toLowerCase().includes(query.toLowerCase()) ||
-        c.name.toLowerCase().includes(query.toLowerCase());
-      const matchesStatus = statusFilter === "Todos" || c.status === statusFilter;
+        (c.name || "").toLowerCase().includes(query.toLowerCase());
+      let matchesStatus = true;
+      if (statusFilter === "Enferma") matchesStatus = !!c.sick;
+      else if (statusFilter === "Vendida") matchesStatus = !!c.sold;
+      else if (statusFilter !== "Todos") matchesStatus = c.weightStatus === statusFilter;
       return matchesQuery && matchesStatus;
     });
   }, [herd, query, statusFilter]);
 
   const stats = useMemo(() => {
     const total = herd.length;
-    const healthy = herd.filter((c) => c.status === "Saludable").length;
+    const healthy = herd.filter((c) => c.weightStatus === "Saludable").length;
     const attention = herd.filter((c) =>
-      c.status === "Enferma" || c.status === "Sobrepeso" || c.status === "Bajo peso"
+      c.sick || c.weightStatus === "Sobrepeso" || c.weightStatus === "Bajo peso"
     ).length;
-    const weights = herd.filter((c) => typeof c.weight === "number" && c.status !== "Vendida").map((c) => c.weight);
+    const weights = herd.filter((c) => typeof c.weight === "number" && !c.sold).map((c) => c.weight);
     const avgWeight = weights.length ? Math.round(weights.reduce((a, b) => a + b, 0) / weights.length) : null;
     return { total, healthy, attention, avgWeight };
   }, [herd]);
@@ -284,9 +308,6 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap');
         .mg-display { font-family: 'Space Grotesk', sans-serif; }
         .mg-mono { font-family: 'JetBrains Mono', monospace; }
-        .mg-hole {
-          box-shadow: inset 0 0 0 2px var(--hole-ring);
-        }
         .mg-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
         .mg-card:hover { transform: translateY(-2px); }
         .mg-fade-in { animation: mgFadeIn 0.25s ease both; }
@@ -374,9 +395,11 @@ export default function App() {
           style={{ background: COLORS.bgSoft, color: COLORS.cream, border: "none" }}
         >
           <option value="Todos">Todos los estados</option>
-          {Object.keys(STATUS).map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
+          <option value="Saludable">Saludable</option>
+          <option value="Sobrepeso">Sobrepeso</option>
+          <option value="Bajo peso">Bajo peso</option>
+          <option value="Enferma">Enferma</option>
+          <option value="Vendida">Vendida</option>
         </select>
         {saving && (
           <span className="text-xs flex items-center gap-1" style={{ color: "#9CA687" }}>
@@ -456,24 +479,46 @@ export default function App() {
                   placeholder="Ej. Canela"
                 />
               </Field>
-              <Field label="Raza">
-                <input
-                  value={form.breed}
-                  onChange={(e) => setForm(withAutoStatus({ ...form, breed: e.target.value }, breedRanges))}
-                  style={inputStyle}
-                  placeholder="Ej. Brahman"
-                  list="mg-breed-list"
-                />
-                {Object.keys(breedRanges).length > 0 && (
-                  <datalist id="mg-breed-list">
-                    {Object.values(breedRanges).map((b) => <option key={b.name} value={b.name} />)}
-                  </datalist>
-                )}
-              </Field>
+
+              <div className="col-span-2">
+                <Field label="Raza">
+                  {breedProfiles.length === 0 ? (
+                    <div>
+                      <select disabled style={{ ...inputStyle, opacity: 0.6, cursor: "not-allowed" }}>
+                        <option>Agrega una raza primero</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setBreedModalOpen(true)}
+                        className="text-xs underline mt-1.5 font-semibold"
+                        style={{ color: COLORS.clay }}
+                      >
+                        + Agregar raza
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={form.breed}
+                      onChange={(e) => setForm({ ...form, breed: e.target.value })}
+                      className="mg-select"
+                      style={inputStyle}
+                    >
+                      <option value="">Sin especificar</option>
+                      {form.breed && !breedRanges[normalizeBreedKey(form.breed)] && (
+                        <option value={form.breed} disabled>{form.breed} (raza eliminada)</option>
+                      )}
+                      {breedProfiles.map((b) => (
+                        <option key={b.name} value={b.name}>{b.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </Field>
+              </div>
+
               <Field label="Sexo">
                 <select
                   value={form.sex}
-                  onChange={(e) => setForm(withAutoStatus({ ...form, sex: e.target.value }, breedRanges))}
+                  onChange={(e) => setForm({ ...form, sex: e.target.value })}
                   className="mg-select"
                   style={inputStyle}
                 >
@@ -485,43 +530,90 @@ export default function App() {
                 <input
                   type="date"
                   value={form.birthDate}
-                  onChange={(e) => setForm(withAutoStatus({ ...form, birthDate: e.target.value }, breedRanges))}
+                  onChange={(e) => setForm({ ...form, birthDate: e.target.value })}
                   style={inputStyle}
-                />
-              </Field>
-              <Field label="Peso (kg)" error={formErrors.weight}>
-                <input
-                  value={form.weight}
-                  onChange={(e) => setForm(withAutoStatus({ ...form, weight: e.target.value }, breedRanges))}
-                  className="mg-mono"
-                  style={inputStyle}
-                  placeholder="Ej. 380"
-                  inputMode="decimal"
                 />
               </Field>
               <div className="col-span-2">
-                <Field label="Estado de salud">
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
-                    className="mg-select"
+                <Field label="Peso (kg)" error={formErrors.weight}>
+                  <input
+                    value={form.weight}
+                    onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                    className="mg-mono"
                     style={inputStyle}
-                  >
-                    {Object.keys(STATUS).map((s) => <option key={s}>{s}</option>)}
-                  </select>
+                    placeholder="Ej. 380"
+                    inputMode="decimal"
+                  />
                 </Field>
+              </div>
+
+              <div className="col-span-2">
+                <span className="text-xs font-medium block mb-1" style={{ color: COLORS.inkSoft }}>
+                  Estado de peso (automático)
+                </span>
+                <div
+                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold"
+                  style={{
+                    background: liveWeightStatus ? `${WEIGHT_STATUS[liveWeightStatus].color}22` : "#EFE9D8",
+                    color: liveWeightStatus ? WEIGHT_STATUS[liveWeightStatus].color : COLORS.inkSoft,
+                  }}
+                >
+                  {liveWeightStatus ? (
+                    <>
+                      <WeightIcon status={liveWeightStatus} size={16} />
+                      {liveWeightStatus}
+                    </>
+                  ) : (
+                    <>
+                      <HelpCircle size={16} />
+                      Sin clasificar — {form.breed ? "ingresa el peso" : "elige una raza"}
+                    </>
+                  )}
+                </div>
                 <p className="text-[11px] mt-1.5" style={{ color: COLORS.inkSoft }}>
-                  Saludable / Sobrepeso / Bajo peso se calculan según el peso, la edad, el sexo y los{" "}
+                  Se calcula solo con los{" "}
                   <button
                     type="button"
                     onClick={() => setBreedModalOpen(true)}
                     className="underline font-semibold"
                     style={{ color: COLORS.clay }}
                   >
-                    rangos configurados para la raza
-                  </button>. Puedes cambiarlo a Enferma o Vendida manualmente cuando lo necesites.
+                    rangos de la raza elegida
+                  </button>. No se puede editar a mano.
                 </p>
               </div>
+
+              <div className="col-span-2">
+                <span className="text-xs font-medium block mb-1" style={{ color: COLORS.inkSoft }}>
+                  Otras condiciones
+                </span>
+                <div className="flex gap-2">
+                  {Object.values(FLAGS).map((flag) => {
+                    const FlagIcon = flag.icon;
+                    const active = form[flag.key];
+                    return (
+                      <button
+                        key={flag.key}
+                        type="button"
+                        onClick={() => setForm({ ...form, [flag.key]: !active })}
+                        className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold"
+                        style={{
+                          background: active ? flag.color : "transparent",
+                          color: active ? COLORS.cream : flag.color,
+                          border: `1.5px solid ${flag.color}`,
+                        }}
+                      >
+                        <FlagIcon size={13} />
+                        {flag.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] mt-1.5" style={{ color: COLORS.inkSoft }}>
+                  Puedes activar ambas a la vez, por ejemplo un animal con sobrepeso que también esté enfermo.
+                </p>
+              </div>
+
               <div className="col-span-2">
                 <Field label="Notas">
                   <textarea
@@ -590,6 +682,7 @@ export default function App() {
           </div>
         </div>
       )}
+
       {/* Breed weight-range settings */}
       {breedModalOpen && (
         <BreedRangesModal
@@ -623,23 +716,34 @@ function Field({ label, error, children }) {
   );
 }
 
+function WeightIcon({ status, size }) {
+  const Icon = WEIGHT_STATUS[status]?.icon;
+  if (!Icon) return null;
+  return <Icon size={size} />;
+}
+
 function CowCard({ cow, onEdit, onDeleteRequest }) {
-  const statusInfo = STATUS[cow.status] || STATUS["Saludable"];
-  const StatusIcon = statusInfo.icon;
   const age = ageFromDate(cow.birthDate);
+  const weightInfo = cow.weightStatus ? WEIGHT_STATUS[cow.weightStatus] : null;
+  const primaryColor = cow.sick
+    ? COLORS.rust
+    : weightInfo
+    ? weightInfo.color
+    : cow.sold
+    ? COLORS.inkSoft
+    : COLORS.cardEdge;
 
   return (
     <div
       className="mg-card mg-fade-in relative rounded-r-2xl rounded-l-lg pl-6 pr-4 py-4 shadow-lg"
-      style={{ background: COLORS.card, borderLeft: `7px solid ${statusInfo.color}` }}
+      style={{ background: COLORS.card, borderLeft: `7px solid ${primaryColor}` }}
     >
-      {/* punch hole */}
       <div
         className="absolute rounded-full"
         style={{
           left: -8, top: 18, width: 14, height: 14,
           background: COLORS.bg,
-          boxShadow: `inset 0 0 0 2.5px ${statusInfo.color}`,
+          boxShadow: `inset 0 0 0 2.5px ${primaryColor}`,
         }}
       />
 
@@ -664,12 +768,39 @@ function CowCard({ cow, onEdit, onDeleteRequest }) {
         </div>
       </div>
 
-      <div
-        className="flex items-center gap-1.5 mt-3 text-xs font-semibold rounded-full px-2.5 py-1 w-fit"
-        style={{ background: `${statusInfo.color}22`, color: statusInfo.color }}
-      >
-        <StatusIcon size={12} />
-        {cow.status}
+      <div className="flex flex-wrap gap-1.5 mt-3">
+        {weightInfo ? (
+          <span
+            className="flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1"
+            style={{ background: `${weightInfo.color}22`, color: weightInfo.color }}
+          >
+            <WeightIcon status={cow.weightStatus} size={12} />
+            {cow.weightStatus}
+          </span>
+        ) : (
+          <span
+            className="flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1"
+            style={{ background: "#EFE9D8", color: COLORS.inkSoft }}
+          >
+            <HelpCircle size={12} /> Sin clasificar
+          </span>
+        )}
+        {cow.sick && (
+          <span
+            className="flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1"
+            style={{ background: `${COLORS.rust}22`, color: COLORS.rust }}
+          >
+            <ShieldAlert size={12} /> Enferma
+          </span>
+        )}
+        {cow.sold && (
+          <span
+            className="flex items-center gap-1.5 text-xs font-semibold rounded-full px-2.5 py-1"
+            style={{ background: `${COLORS.inkSoft}22`, color: COLORS.inkSoft }}
+          >
+            <CircleDot size={12} /> Vendida
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-3 text-xs" style={{ color: COLORS.inkSoft }}>
@@ -739,7 +870,7 @@ function emptyBreedForm(seed) {
 }
 
 function BreedRangesModal({ breedRanges, onSave, onClose }) {
-  const [view, setView] = useState("list"); // "list" | "form"
+  const [view, setView] = useState("list");
   const [editingKey, setEditingKey] = useState(null);
   const [form, setForm] = useState(emptyBreedForm());
   const [error, setError] = useState("");
@@ -846,14 +977,13 @@ function BreedRangesModal({ breedRanges, onSave, onClose }) {
               </button>
             </div>
             <p className="text-xs mb-4" style={{ color: COLORS.inkSoft }}>
-              Define para cada raza los rangos de peso normal por etapa y sexo. Al guardar, se recalcula
-              automáticamente el estado de todos los animales de esa raza. Las razas sin perfil usan un
-              rango general de referencia.
+              Define para cada raza los rangos de peso normal por etapa y sexo. Solo los animales con una raza
+              de esta lista pueden clasificarse automáticamente como Saludable, Sobrepeso o Bajo peso.
             </p>
 
             {profiles.length === 0 ? (
               <div className="text-sm text-center py-8" style={{ color: COLORS.inkSoft }}>
-                Aún no has configurado ninguna raza. Se está usando el rango general para todos los animales.
+                Aún no has configurado ninguna raza. Hasta que agregues una, los animales no podrán clasificarse por peso.
               </div>
             ) : (
               <div className="flex flex-col gap-2 mb-4">

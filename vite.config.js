@@ -5,5 +5,5 @@ import react from "@vitejs/plugin-react";
 // en GitHub (ej. si tu repo se llama "cow-register-app", pon "/cow-register-app/").
 export default defineConfig({
   plugins: [react()],
-  base: "/Cow_register/",
+  base: "/cow-register/",
 });
